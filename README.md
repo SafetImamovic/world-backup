@@ -60,7 +60,11 @@ On most systems this installs into Cargo's bin directory, typically `%USERPROFIL
 
 ## Releases
 
-The repository includes a GitHub Actions workflow that builds versioned packages for Windows, Linux, and macOS whenever `master` is updated. The package names include the Cargo version from `Cargo.toml`.
+The repository includes a GitHub Actions workflow that builds versioned packages for Windows, Linux, and macOS.
+
+- Pushes to `master` build packages and upload them as Actions artifacts.
+- Pushing a tag like `v0.1.0` publishes those packages as GitHub Release assets, which makes them visible on the repo's Releases page.
+- The workflow validates that the tag matches the Cargo version in `Cargo.toml`.
 
 ## Examples
 
