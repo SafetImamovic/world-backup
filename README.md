@@ -6,6 +6,8 @@ If you are here because you are hosting an All the Mods 10 server and noticed th
 
 I needed a straightforward backup setup for my own ATM10 server, so I went ahead and made this. `world-backup` is an external Rust CLI that creates timestamped backups of a Minecraft server world. It can run once or stay running and back the world up on an interval or cron schedule.
 
+I made this as a standalone Rust program, not a Minecraft mod, because I wanted it independent of modpack health and lighter on the server itself. It runs as a compiled native binary instead of inside the JVM, and Rust is fast.
+
 ## Recommended ATM10 Setup
 
 For most ATM10 servers, back up the `world` directory, not the entire server folder. That already includes the important live data like `level.dat`, `playerdata`, `region`, `DIM-1`, `DIM1`, `dimensions`, `poi`, `entities`, and mod-specific world data inside `world/`.
