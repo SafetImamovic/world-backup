@@ -23,6 +23,16 @@ The final binary will be at `target\release\world-backup.exe` on Windows.
 
 On Linux and macOS, the final binary will be at `target/release/world-backup`.
 
+## Install
+
+Install the binary into Cargo's global bin directory so you can run `world-backup` directly from your shell:
+
+```powershell
+cargo install --path .
+```
+
+On most systems this installs into Cargo's bin directory, typically `%USERPROFILE%\.cargo\bin` on Windows or `$HOME/.cargo/bin` on Linux and macOS. Make sure that directory is on your `PATH`.
+
 ## Examples
 
 ### PowerShell
