@@ -372,8 +372,16 @@ mod tests {
 
     #[test]
     fn default_target_dir_uses_world_name() {
-        let target = default_target_dir(Path::new(r"C:\server\world")).unwrap();
-        assert!(target.ends_with("world-backups"));
+        let source = if cfg!(windows) {
+            Path::new(r"C:\server\world")
+        } else {
+            Path::new("/srv/server/world")
+        };
+        let target = default_target_dir(source).unwrap();
+        assert_eq!(
+            target.file_name().and_then(|part| part.to_str()),
+            Some("world-backups")
+        );
     }
 
     #[test]
