@@ -21,9 +21,11 @@ cargo build --release
 
 The final binary will be at `target\release\world-backup.exe` on Windows.
 
+On Linux and macOS, the final binary will be at `target/release/world-backup`.
+
 ## Examples
 
-Back up the default `.\world` directory once into `.\world-backups` using zip compression:
+### PowerShell
 
 ```powershell
 world-backup backup
@@ -74,10 +76,92 @@ world-backup backup `
   --post-command "echo backup completed"
 ```
 
-Exclude additional content:
+Kitchen sink example with most of the available knobs:
 
 ```powershell
-world-backup backup --exclude "logs/**" --exclude "cache/**"
+world-backup run `
+  --source "C:\Users\User\Desktop\server-2.0.0\world" `
+  --target-dir "D:\minecraft-backups\atm10" `
+  --name "atm10-tts" `
+  --compression tar-zst `
+  --compression-level 10 `
+  --interval 30m `
+  --keep-recent 48 `
+  --keep-daily-for-days 14 `
+  --keep-daily-at 00:00 `
+  --keep-daily-at 12:00 `
+  --exclude "logs/**" `
+  --exclude "cache/**" `
+  --pre-command "echo save-all" `
+  --post-command "echo save resume" `
+  --run-immediately `
+  -v
+```
+
+### Bash
+
+Back up the default `./world` directory once into `./world-backups` using zip compression:
+
+```bash
+./target/release/world-backup backup
+```
+
+Back up an ATM10 world every 30 minutes into a custom directory and keep the newest 24 backups:
+
+```bash
+./target/release/world-backup run \
+  --source "/srv/minecraft/atm10/world" \
+  --target-dir "/srv/backups/atm10" \
+  --interval 30m \
+  --compression zip \
+  --keep-last 24 \
+  --run-immediately
+```
+
+Keep the newest 48 half-hourly backups, then collapse older backups into midnight and noon checkpoints for the previous 14 days:
+
+```bash
+./target/release/world-backup run \
+  --source "/srv/minecraft/atm10/world" \
+  --target-dir "/srv/backups/atm10" \
+  --interval 30m \
+  --compression zip \
+  --keep-recent 48 \
+  --keep-daily-for-days 14 \
+  --keep-daily-at 00:00 \
+  --keep-daily-at 12:00 \
+  --run-immediately
+```
+
+Use a cron schedule instead of a fixed interval. Five-field cron is accepted and interpreted in local time:
+
+```bash
+./target/release/world-backup run \
+  --source "/srv/minecraft/atm10/world" \
+  --cron "0 */6 * * *" \
+  --compression tar-zst
+```
+
+Kitchen sink example with most of the available knobs:
+
+```bash
+./target/release/world-backup run \
+  --source "/srv/minecraft/atm10/world" \
+  --target-dir "/srv/backups/atm10" \
+  --name "atm10-tts" \
+  --compression tar-zst \
+  --compression-level 10 \
+  --cron "0 */6 * * *" \
+  --keep-recent 48 \
+  --keep-daily-for-days 14 \
+  --keep-daily-at 00:00 \
+  --keep-daily-at 12:00 \
+  --exclude "logs/**" \
+  --exclude "cache/**" \
+  --pre-command "rcon-cli save-all" \
+  --post-command "echo backup finished" \
+  --run-immediately \
+  -v
 ```
 
 ## Notes
