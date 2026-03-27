@@ -26,6 +26,7 @@ pub struct BackupConfig {
     pub compression_level: Option<i32>,
     pub retention: RetentionPolicy,
     pub exclude: Vec<String>,
+    pub day_directories: bool,
     pub include_session_lock: bool,
     pub pre_command: Option<String>,
     pub post_command: Option<String>,
@@ -146,9 +147,22 @@ pub fn perform_backup(config: BackupConfig) -> Result<BackupSummary> {
 
 fn perform_backup_inner(config: &BackupConfig, target_dir: &Path) -> Result<BackupSummary> {
     let exclusions = Exclusions::new(config)?;
-    let artifact = build_artifact(target_dir, &config.name, config.compression);
+    let artifact = build_artifact(
+        target_dir,
+        &config.name,
+        config.compression,
+        config.day_directories,
+    );
     info!("starting backup of {}", config.source.display());
     info!("writing backup to {}", artifact.final_path.display());
+    if let Some(parent) = artifact.final_path.parent() {
+        fs::create_dir_all(parent).with_context(|| {
+            format!(
+                "failed to create backup destination directory '{}'",
+                parent.display()
+            )
+        })?;
+    }
 
     let staging = TempDirBuilder::new()
         .prefix(".world-backup-")
@@ -209,6 +223,9 @@ fn perform_backup_inner(config: &BackupConfig, target_dir: &Path) -> Result<Back
         &config.retention,
         &artifact.final_path,
     )?;
+    if config.day_directories {
+        prune_empty_day_directories(target_dir)?;
+    }
 
     Ok(BackupSummary {
         path: artifact.final_path,
@@ -217,17 +234,27 @@ fn perform_backup_inner(config: &BackupConfig, target_dir: &Path) -> Result<Back
     })
 }
 
-fn build_artifact(target_dir: &Path, name: &str, compression: CompressionFormat) -> BackupArtifact {
-    let timestamp = Utc::now().format("%Y%m%dT%H%M%SZ");
-    let base_name = format!("{name}-{timestamp}");
+fn build_artifact(
+    target_dir: &Path,
+    name: &str,
+    compression: CompressionFormat,
+    day_directories: bool,
+) -> BackupArtifact {
+    let timestamp = Local::now();
+    let base_name = format!("{name}-{}", timestamp.format("%Y-%m-%d_%H-%M-%S%z"));
     let final_name = match compression.extension() {
         Some(extension) => format!("{base_name}.{extension}"),
         None => base_name.clone(),
     };
+    let final_dir = if day_directories {
+        target_dir.join(timestamp.format("%Y-%m-%d").to_string())
+    } else {
+        target_dir.to_path_buf()
+    };
 
     BackupArtifact {
         base_name,
-        final_path: target_dir.join(final_name),
+        final_path: final_dir.join(final_name),
     }
 }
 
@@ -454,6 +481,45 @@ fn normalize_path(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
+fn prune_empty_day_directories(target_dir: &Path) -> Result<()> {
+    for entry in fs::read_dir(target_dir)
+        .with_context(|| format!("failed to read '{}'", target_dir.display()))?
+    {
+        let entry = entry
+            .with_context(|| format!("failed to read entries in '{}'", target_dir.display()))?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|part| part.to_str()) else {
+            continue;
+        };
+        if !looks_like_day_directory(name) {
+            continue;
+        }
+
+        let is_empty = fs::read_dir(&path)
+            .with_context(|| format!("failed to read '{}'", path.display()))?
+            .next()
+            .is_none();
+        if is_empty {
+            fs::remove_dir(&path).with_context(|| {
+                format!("failed to remove empty day directory '{}'", path.display())
+            })?;
+        }
+    }
+
+    Ok(())
+}
+
+fn looks_like_day_directory(name: &str) -> bool {
+    name.len() == 10
+        && name.chars().enumerate().all(|(index, ch)| match index {
+            4 | 7 => ch == '-',
+            _ => ch.is_ascii_digit(),
+        })
+}
+
 fn artifact_size(path: &Path) -> Result<u64> {
     if path.is_file() {
         return Ok(path
@@ -514,12 +580,14 @@ fn enforce_retention(
 fn collect_managed_backups(target_dir: &Path, name: &str) -> Result<Vec<ManagedBackup>> {
     let prefix = format!("{name}-");
     let mut backups = Vec::new();
-    for entry in fs::read_dir(target_dir)
-        .with_context(|| format!("failed to read '{}'", target_dir.display()))?
-    {
+    let walker = WalkDir::new(target_dir)
+        .min_depth(1)
+        .into_iter()
+        .filter_entry(|entry| !is_staging_directory(entry));
+    for entry in walker {
         let entry = entry
             .with_context(|| format!("failed to read entries in '{}'", target_dir.display()))?;
-        let path = entry.path();
+        let path = entry.path().to_path_buf();
         let Some(file_name) = path.file_name().and_then(|part| part.to_str()) else {
             continue;
         };
@@ -543,8 +611,36 @@ fn collect_managed_backups(target_dir: &Path, name: &str) -> Result<Vec<ManagedB
     Ok(backups)
 }
 
+fn is_staging_directory(entry: &DirEntry) -> bool {
+    entry
+        .file_name()
+        .to_str()
+        .map(|name| name.starts_with(".world-backup-"))
+        .unwrap_or(false)
+}
+
 fn parse_backup_timestamp(prefix: &str, file_name: &str) -> Option<DateTime<Utc>> {
     let suffix = file_name.strip_prefix(prefix)?;
+    parse_human_readable_backup_timestamp(suffix).or_else(|| parse_legacy_backup_timestamp(suffix))
+}
+
+fn parse_human_readable_backup_timestamp(suffix: &str) -> Option<DateTime<Utc>> {
+    if suffix.len() < 24 {
+        return None;
+    }
+
+    let timestamp = &suffix[..24];
+    let remainder = &suffix[24..];
+    if !remainder.is_empty() && !remainder.starts_with('.') {
+        return None;
+    }
+
+    DateTime::parse_from_str(timestamp, "%Y-%m-%d_%H-%M-%S%z")
+        .ok()
+        .map(|timestamp| timestamp.with_timezone(&Utc))
+}
+
+fn parse_legacy_backup_timestamp(suffix: &str) -> Option<DateTime<Utc>> {
     if suffix.len() < 16 {
         return None;
     }
@@ -664,8 +760,8 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        BackupConfig, ManagedBackup, RetentionPolicy, TieredRetentionPolicy, perform_backup,
-        select_backups_to_keep,
+        BackupConfig, ManagedBackup, RetentionPolicy, TieredRetentionPolicy,
+        looks_like_day_directory, parse_backup_timestamp, perform_backup, select_backups_to_keep,
     };
     use crate::cli::CompressionFormat;
 
@@ -687,6 +783,7 @@ mod tests {
             compression_level: None,
             retention: RetentionPolicy::None,
             exclude: Vec::new(),
+            day_directories: false,
             include_session_lock: false,
             pre_command: None,
             post_command: None,
@@ -722,6 +819,7 @@ mod tests {
             compression_level: Some(1),
             retention: RetentionPolicy::KeepLast(2),
             exclude: Vec::new(),
+            day_directories: false,
             include_session_lock: false,
             pre_command: None,
             post_command: None,
@@ -733,6 +831,47 @@ mod tests {
         assert!(!old_one.exists());
         assert!(old_two.exists());
         assert!(keep_other.exists());
+    }
+
+    #[test]
+    fn creates_human_readable_backup_name_in_day_directory() {
+        let source_root = tempdir().unwrap();
+        let source = source_root.path().join("world");
+        fs::create_dir_all(&source).unwrap();
+        fs::write(source.join("level.dat"), b"level").unwrap();
+
+        let target_root = tempdir().unwrap();
+        let config = BackupConfig {
+            source,
+            target_dir: target_root.path().to_path_buf(),
+            name: "atm10".to_string(),
+            compression: CompressionFormat::Zip,
+            compression_level: Some(1),
+            retention: RetentionPolicy::None,
+            exclude: Vec::new(),
+            day_directories: true,
+            include_session_lock: false,
+            pre_command: None,
+            post_command: None,
+        };
+
+        let summary = perform_backup(config).unwrap();
+        let parent_name = summary
+            .path
+            .parent()
+            .and_then(|part| part.file_name())
+            .and_then(|part| part.to_str())
+            .unwrap();
+        let file_name = summary
+            .path
+            .file_name()
+            .and_then(|part| part.to_str())
+            .unwrap();
+
+        assert!(looks_like_day_directory(parent_name));
+        assert!(file_name.starts_with("atm10-"));
+        assert!(file_name.ends_with(".zip"));
+        assert!(parse_backup_timestamp("atm10-", file_name).is_some());
     }
 
     #[test]

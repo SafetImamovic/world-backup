@@ -7,6 +7,8 @@
 - Creates a staged snapshot before writing the final backup artifact.
 - Supports `zip`, `tar-gz`, `tar-zst`, or an uncompressed snapshot directory.
 - Defaults to writing backups into a sibling `world-backups` directory.
+- Uses human-readable local timestamp names such as `atm10-2026-03-27_10-15-00+0100.zip`.
+- Can optionally place backups into per-day `YYYY-MM-DD` subdirectories.
 - Accepts either `--interval 30m` style scheduling or `--cron "0 */6 * * *"` style scheduling.
 - Skips `session.lock` by default.
 - Can run pre/post shell hooks to integrate with server save commands or maintenance scripts.
@@ -61,6 +63,7 @@ world-backup run `
   --target-dir "D:\minecraft-backups\atm10" `
   --interval 30m `
   --compression zip `
+  --day-directories `
   --keep-recent 48 `
   --keep-daily-for-days 14 `
   --keep-daily-at 00:00 `
@@ -96,6 +99,7 @@ world-backup run `
   --compression tar-zst `
   --compression-level 10 `
   --interval 30m `
+  --day-directories `
   --keep-recent 48 `
   --keep-daily-for-days 14 `
   --keep-daily-at 00:00 `
@@ -136,6 +140,7 @@ Keep the newest 48 half-hourly backups, then collapse older backups into midnigh
   --target-dir "/srv/backups/atm10" \
   --interval 30m \
   --compression zip \
+  --day-directories \
   --keep-recent 48 \
   --keep-daily-for-days 14 \
   --keep-daily-at 00:00 \
@@ -162,6 +167,7 @@ Kitchen sink example with most of the available knobs:
   --compression tar-zst \
   --compression-level 10 \
   --cron "0 */6 * * *" \
+  --day-directories \
   --keep-recent 48 \
   --keep-daily-for-days 14 \
   --keep-daily-at 00:00 \
@@ -177,5 +183,6 @@ Kitchen sink example with most of the available knobs:
 ## Notes
 
 - If you back up a live server, use the hook commands to flush or pause writes before the snapshot when possible.
+- `--day-directories` stores backups under local date folders such as `2026-03-27\atm10-2026-03-27_10-15-00+0100.zip`.
 - The target directory must not be inside the world directory.
 - Backup names default to the source directory name. Use `--name` if you want a more descriptive prefix.

@@ -142,6 +142,13 @@ pub struct BackupOptions {
 
     #[arg(
         long,
+        env = "WORLD_BACKUP_DAY_DIRECTORIES",
+        help = "Store backups in local YYYY-MM-DD subdirectories inside the target directory."
+    )]
+    pub day_directories: bool,
+
+    #[arg(
+        long,
         help = "Include the world's session.lock file. By default it is skipped to avoid copying the live lock file."
     )]
     pub include_session_lock: bool,
@@ -228,6 +235,7 @@ impl BackupOptions {
             compression_level: self.compression_level,
             retention,
             exclude: self.exclude.clone(),
+            day_directories: self.day_directories,
             include_session_lock: self.include_session_lock,
             pre_command: self.pre_command.clone(),
             post_command: self.post_command.clone(),
