@@ -8,6 +8,8 @@ I needed a straightforward backup setup for my own ATM10 server, so I went ahead
 
 I made this as a standalone Rust program, not a Minecraft mod, because I wanted it independent of modpack health and lighter on the server itself. It runs as a compiled native binary instead of inside the JVM, and Rust is fast.
 
+This is still beta, and I am open to discussion and feedback on the workflow, retention model, and release process.
+
 ## Recommended ATM10 Setup
 
 For most ATM10 servers, back up the `world` directory, not the entire server folder. That already includes the important live data like `level.dat`, `playerdata`, `region`, `DIM-1`, `DIM1`, `dimensions`, `poi`, `entities`, and mod-specific world data inside `world/`.
@@ -55,6 +57,10 @@ cargo install --path .
 ```
 
 On most systems this installs into Cargo's bin directory, typically `%USERPROFILE%\.cargo\bin` on Windows or `$HOME/.cargo/bin` on Linux and macOS. Make sure that directory is on your `PATH`.
+
+## Releases
+
+The repository includes a GitHub Actions workflow that builds versioned packages for Windows, Linux, and macOS whenever `master` is updated. The package names include the Cargo version from `Cargo.toml`.
 
 ## Examples
 
