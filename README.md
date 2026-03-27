@@ -1,6 +1,23 @@
 # world-backup
 
-`world-backup` is a Rust CLI that creates timestamped backups of a Minecraft server world. It can run once or stay running and back the world up on an interval or cron schedule.
+## ATM10 Server Backups - How to Set Up?
+
+If you are here because you are hosting an All the Mods 10 server and noticed there is no `simplebackups` mod in the server files: you are not missing anything. ATM10 server packs no longer reliably ship with SimpleBackups, and a lot of older advice is out of date.
+
+I needed a straightforward backup setup for my own ATM10 server, so I went ahead and made this. `world-backup` is an external Rust CLI that creates timestamped backups of a Minecraft server world. It can run once or stay running and back the world up on an interval or cron schedule.
+
+## Recommended ATM10 Setup
+
+For most ATM10 servers, back up the `world` directory, not the entire server folder. That already includes the important live data like `level.dat`, `playerdata`, `region`, `DIM-1`, `DIM1`, `dimensions`, `poi`, `entities`, and mod-specific world data inside `world/`.
+
+Use an external tool like this when you want:
+
+- something pack-independent that still works even if the modpack does not include a backup mod
+- the same workflow on Windows and Linux
+- explicit retention rules and readable backup files
+- backups that are not tied to a panel like AMP or a specific mod/plugin
+
+If you already have a panel with reliable backups or you prefer a server-side backup mod, that can work too. This project is for the case where you just want a predictable answer that does not depend on ATM10 shipping the right mod.
 
 ## Features
 
@@ -11,6 +28,7 @@
 - Can optionally place backups into per-day `YYYY-MM-DD` subdirectories.
 - Accepts either `--interval 30m` style scheduling or `--cron "0 */6 * * *"` style scheduling.
 - Can align interval schedules to exact wall-clock boundaries from local midnight after an immediate startup run.
+- By default, scheduled `run` checks `world/session.lock` and skips backups when the server appears offline.
 - Skips `session.lock` by default.
 - Can run pre/post shell hooks to integrate with server save commands or maintenance scripts.
 - Can delete older matching backups with `--keep-last`.
@@ -79,6 +97,15 @@ world-backup run `
   --source "C:\Users\User\Desktop\server-2.0.0\world" `
   --interval 15m `
   --run-immediately-aligned
+```
+
+If you want scheduled backups even while the server is stopped, override the default skip behavior:
+
+```powershell
+world-backup run `
+  --source "C:\Users\User\Desktop\server-2.0.0\world" `
+  --interval 30m `
+  --always-backup
 ```
 
 Use a cron schedule instead of a fixed interval. Five-field cron is accepted and interpreted in local time:
@@ -167,6 +194,15 @@ Run one backup immediately, then snap the next interval backup to the next exact
   --run-immediately-aligned
 ```
 
+If you want scheduled backups even while the server is stopped, override the default skip behavior:
+
+```bash
+./target/release/world-backup run \
+  --source "/srv/minecraft/atm10/world" \
+  --interval 30m \
+  --always-backup
+```
+
 Use a cron schedule instead of a fixed interval. Five-field cron is accepted and interpreted in local time:
 
 ```bash
@@ -201,6 +237,9 @@ Kitchen sink example with most of the available knobs:
 
 ## Notes
 
+- For ATM10 specifically, backing up `world` is usually the right answer, not the whole server root.
+- This is meant as the boring, reliable external option when the pack does not ship a backup mod and the wiki or old Reddit answers are outdated.
+- Scheduled `run` uses the Minecraft `session.lock` file as the liveness check. If you want backups regardless of server state, use `--always-backup`.
 - If you back up a live server, use the hook commands to flush or pause writes before the snapshot when possible.
 - `--day-directories` stores backups under local date folders such as `2026-03-27\atm10-2026-03-27_10-15-00+0100.zip`.
 - The target directory must not be inside the world directory.

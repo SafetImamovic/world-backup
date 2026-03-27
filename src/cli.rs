@@ -66,6 +66,13 @@ pub struct RunArgs {
         help = "Perform one backup immediately, then align interval backups to exact local time boundaries from midnight. For example, with 30m at 09:39 the next run is 10:00."
     )]
     pub run_immediately_aligned: bool,
+
+    #[arg(
+        long,
+        env = "WORLD_BACKUP_ALWAYS_BACKUP",
+        help = "Run scheduled backups even when the Minecraft server does not appear to be running. By default, `run` checks `world/session.lock` and skips offline backups."
+    )]
+    pub always_backup: bool,
 }
 
 #[derive(Debug, Args, Clone)]
