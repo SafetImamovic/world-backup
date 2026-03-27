@@ -34,13 +34,17 @@ pub fn run() -> Result<()> {
         }
         Command::Run(args) => {
             let config = args.backup.backup_config()?;
-            let schedule = ScheduleSpec::from_args(args.interval.as_deref(), args.cron.as_deref())?;
+            let schedule = ScheduleSpec::from_args(
+                args.interval.as_deref(),
+                args.cron.as_deref(),
+                args.run_immediately_aligned,
+            )?;
             if let Some(expression) = schedule.expression() {
                 info!("using cron schedule {expression}");
             }
 
             let shutdown = install_ctrlc_handler()?;
-            if args.run_immediately {
+            if args.run_immediately || args.run_immediately_aligned {
                 match perform_backup(config.clone()) {
                     Ok(summary) => info!("startup backup created at {}", summary.path.display()),
                     Err(error) => error!("startup backup failed: {error:#}"),

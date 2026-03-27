@@ -59,6 +59,13 @@ pub struct RunArgs {
         help = "Perform one backup immediately before waiting for the schedule."
     )]
     pub run_immediately: bool,
+
+    #[arg(
+        long,
+        conflicts_with = "cron",
+        help = "Perform one backup immediately, then align interval backups to exact local time boundaries from midnight. For example, with 30m at 09:39 the next run is 10:00."
+    )]
+    pub run_immediately_aligned: bool,
 }
 
 #[derive(Debug, Args, Clone)]

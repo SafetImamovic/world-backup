@@ -10,6 +10,7 @@
 - Uses human-readable local timestamp names such as `atm10-2026-03-27_10-15-00+0100.zip`.
 - Can optionally place backups into per-day `YYYY-MM-DD` subdirectories.
 - Accepts either `--interval 30m` style scheduling or `--cron "0 */6 * * *"` style scheduling.
+- Can align interval schedules to exact wall-clock boundaries from local midnight after an immediate startup run.
 - Skips `session.lock` by default.
 - Can run pre/post shell hooks to integrate with server save commands or maintenance scripts.
 - Can delete older matching backups with `--keep-last`.
@@ -69,6 +70,15 @@ world-backup run `
   --keep-daily-at 00:00 `
   --keep-daily-at 12:00 `
   --run-immediately
+```
+
+Run one backup immediately, then snap the next interval backup to the next exact boundary from local midnight. For example, with `15m` at `09:39:54`, the next run is `09:45`; with `30m`, the next run is `10:00`:
+
+```powershell
+world-backup run `
+  --source "C:\Users\User\Desktop\server-2.0.0\world" `
+  --interval 15m `
+  --run-immediately-aligned
 ```
 
 Use a cron schedule instead of a fixed interval. Five-field cron is accepted and interpreted in local time:
@@ -146,6 +156,15 @@ Keep the newest 48 half-hourly backups, then collapse older backups into midnigh
   --keep-daily-at 00:00 \
   --keep-daily-at 12:00 \
   --run-immediately
+```
+
+Run one backup immediately, then snap the next interval backup to the next exact boundary from local midnight:
+
+```bash
+./target/release/world-backup run \
+  --source "/srv/minecraft/atm10/world" \
+  --interval 15m \
+  --run-immediately-aligned
 ```
 
 Use a cron schedule instead of a fixed interval. Five-field cron is accepted and interpreted in local time:
