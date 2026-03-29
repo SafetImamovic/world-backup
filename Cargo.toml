@@ -13,7 +13,7 @@ cron = "0.13"
 ctrlc = "3.4"
 env_logger = "0.11"
 flate2 = "1.1"
-fs2 = "0.4"
+libc = "0.2"
 globset = "0.4"
 humantime = "2.3"
 log = "0.4"
@@ -22,3 +22,6 @@ tempfile = "3.23"
 walkdir = "2.5"
 zip = { version = "2.4", default-features = false, features = ["deflate"] }
 zstd = "0.13"
+
+[target.'cfg(windows)'.dependencies]
+fs2 = "0.4"

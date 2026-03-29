@@ -1233,6 +1233,7 @@ dependencies = [
  "fs2",
  "globset",
  "humantime",
+ "libc",
  "log",
  "tar",
  "tempfile",
